@@ -4,30 +4,37 @@ class GithubService
   CLIENT_ID = ENV['GITHUB_CLIENT_ID']
   CLIENT_SECRET = ENV['GITHUB_CLIENT_SECRET']
 
-  def initialize(session)
-    @access_token = session[:token]
+  def initialize(foo = {})
+    @access_token = foo[:access_token]
   end
 
-  def self.authenticate!(code, session)
-    response = Faraday.post "https://github.com/login/oauth/access_token",
-        {client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code: code},
-        {'Accept' => 'application/json'}
+  def authenticate!(foo, bar, code)
+    response = Faraday.post("https://github.com/login/oauth/access_token") do |req|
+      req.body = {client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code: code}
+      req.headers = {'Accept' => 'application/json'}
+    end
     access_hash = JSON.parse(response.body)
     @access_token = access_hash["access_token"]
-    session[:token] = @access_token
-    return self
   end
 
   def get_username
-    user_response = Faraday.get "https://api.github.com/user", {}, {'Authorization' => "token #{self.access_token}", 'Accept' => 'application/json'}
+    user_response = Faraday.get(
+      "https://api.github.com/user",
+     {},
+     {'Authorization' => "token #{self.access_token}", 'Accept' => 'application/json'}
+    )
     user_json = JSON.parse(user_response.body)
     user_json["login"]
   end
 
   def get_repos
-    response = Faraday.get "https://api.github.com/user/repos", {}, {'Authorization' => "token #{self.access_token}", 'Accept' => 'application/json'}
+    response = Faraday.get(
+      "https://api.github.com/user/repos",
+     {},
+     {'Authorization' => "token #{self.access_token}", 'Accept' => 'application/json'}
+    )
     repos_array = JSON.parse(response.body)
-    repos_array.collect { |repo| GithubRepo.new(repo) }
+    repos_array.map { |repo| GithubRepo.new(repo) }
   end
 
   def create_repo(name)
